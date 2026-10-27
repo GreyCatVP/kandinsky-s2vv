@@ -1,0 +1,83 @@
+# Kandinsky S2V 1.0 Pro distilled with pi-Flow — 16-step (NFE 16) inference.
+# Source checkpoint: s2v_piflow_pro_sd_nfe16_8n_v1/step_7500_fsdp8/ema_model,
+# distilled from the teacher in s2v_pro.yaml. CFG is baked into the
+# student, hence guidance_weight 1.0 and a single forward per segment.
+
+paths:
+  dit: kandinskylab/Kandinsky-S2V-1.0-Pro-distill/model/kandinsky_s2v_pro_distill.safetensors
+  vae: hunyuanvideo-community/HunyuanVideo/vae
+  qwen_omni: Qwen/Qwen2.5-Omni-7B
+  clip: openai/clip-vit-large-patch14
+
+dit:
+  in_visual_dim: 16
+  out_visual_dim: 16
+  in_text_dim: 3584
+  in_text_dim2: 768
+  in_audio_dim: 3584   # Qwen2.5-Omni audio tower width
+  time_dim: 1024
+  patch_size: [1, 2, 2]
+  frame_buckets: [2, 4, 24]
+  enable_framepack: true
+  index_rope_ref_image: 40
+  patch_proj1x_coef: [1, 1, 1]
+  patch_proj2x_coef: [2, 2, 2]
+  patch_proj4x_coef: [4, 4, 4]
+  model_dim: 4096
+  ff_dim: 16384
+  num_text_blocks: 4
+  num_audio_blocks: 4
+  num_visual_blocks: 60
+  axes_dims: [32, 48, 48]
+  audio_inject_layers: [0, 4, 8, 12, 16, 20, 24, 28, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59]
+  text_rope_max_pos: 4096
+
+generation:
+  fps: 25
+  latent_frames: 32   # 125 pixel frames = 5.0 s per chunk
+  allowed_resolutions: [[512, 512], [768, 512], [512, 768]]
+  num_steps: 16
+  guidance_weight: 1.0
+  scheduler_scale: 10.0
+  # RoPE scale of the 512 training buckets. The HD configs (s2v_pro_hd.yaml,
+  # s2v_pro_distill_hd.yaml) keep it unchanged rather than rescaling per bucket.
+  scale_factor: [1.0, 2.0, 2.0]
+  seed: 5
+  # K5 POSITIVE_PROMPTS["default"] / NEGATIVE_PROMPTS["default"]
+  prompt: >-
+    The video presents a stable medium close-up of a subject facing the camera
+    directly. The subject exhibits natural, lifelike body dynamics: the head and
+    shoulders move fluidly with the rhythm of speech. The lighting is even,
+    maintaining a balanced natural exposure to clearly define facial features
+    without washout. Throughout the sequence, the subject engages in continuous
+    speech marked by precise, high-fidelity articulation. The lips move in a
+    rhythmic, natural pattern: alternating between brief firm closures and
+    relaxed openings. During these openings, the tips of the upper teeth are
+    momentarily and realistically visible, exhibiting natural enamel texture.
+    The upper lip lifts subtly over the teeth during enunciation, while the jaw
+    performs minimal vertical oscillations synchronized with the speech cadence.
+    Facial micro-expressions are active yet restrained; eyebrows rise and lower
+    slightly with minute asymmetry. The eyes maintain a steady, engaged gaze
+    forward, punctuated by smooth, deliberate blinks.
+  negative_prompt: >-
+    vivid color tones, static, motionless, frozen, subtitles, text, watermark,
+    low quality, jpeg artifacts, blurred, malformed anatomy, deformed hands,
+    extra limbs, mutation, disfigured, teeth, fangs, chaotic background, camera
+    shake, painting, illustration
+
+piflow:
+  enabled: true
+  n_grid: 5
+  num_policy_substeps: 128
+  final_step_size_scale: 0.5
+  shift: 10.0
+  eps: 1.0e-6
+
+text:
+  clip_max_length: 77
+
+offload:
+  strategy: module
+
+attention:
+  engine: flash_attention_3

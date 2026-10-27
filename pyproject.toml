@@ -1,0 +1,87 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "kandinsky-s2v"
+version = "1.0.0"
+description = "Kandinsky S2V 1.0 — speech-to-video inference (reference frame + speech track)"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.13,<3.15"
+dependencies = [
+    "accelerate>=1.15.0",
+    "av>=18.0.0",
+    "cyclopts>=4.22.0",
+    "diffusers>=0.39.0",
+    "flash-attn-3==3.0.0",
+    "librosa>=0.11.0",
+    "pillow>=11.0.0",
+    "pydantic>=2.11.0",
+    "pyyaml>=6.0.2",
+    "safetensors>=0.8.0",
+    "soundfile>=0.13.1",
+    "torch==2.13.0",
+    "torchvision>=0.28.0",
+    "tqdm>=4.67.0",
+    "transformers>=5.14.1",
+]
+
+[project.scripts]
+kandy-s2v = "kandinsky_s2v.cli:main"
+
+[dependency-groups]
+dev = [
+    "hf-doc-builder>=0.5.0",
+    "mypy>=2.3.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "requests>=2.34.2",
+    "ruff>=0.15.22",
+]
+
+[tool.uv.sources]
+flash-attn-3 = { index = "pytorch-cu130" }
+torch = { index = "pytorch-cu130" }
+torchvision = { index = "pytorch-cu130" }
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kandinsky_s2v"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/kandinsky_s2v",
+    "README.md",
+    "LICENSE",
+    "pyproject.toml",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+# Diffusers' own tests for the port, kept in Diffusers form (relative imports into
+# its test suite, its line length) and linted there once injected.
+extend-exclude = ["dev/diffusers_tests"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP", "PL", "B", "ERA", "SIM"]
+# The DiT forward and the samplers mirror the kandinsky-5 reference signatures
+# argument for argument; making them keyword-only would diverge from it for no
+# gain. PLR0913 is silenced per-function, PLR0917 would need the same noqa on
+# every one of them.
+ignore = ["PLR0917"]
+
+[tool.ruff.lint.per-file-ignores]
+# Parts of the port mirror Diffusers' Kandinsky 6 transformer as written there.
+# Diffusers lints with its own configuration, so the rules it does not enforce
+# cannot be enforced here either.
+"src/kandinsky_s2v/ports/diffusers/*.py" = ["E501", "PLR2004"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
