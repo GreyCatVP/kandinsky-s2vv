@@ -1,5 +1,13 @@
 # Kandinsky S2V 1.0
 
+
+
+
+
+
+
+
+
 <p>
   <a href="https://kandinskyavatar.github.io"><img src="https://img.shields.io/badge/Project-Page-green" alt="Project Page"></a>
   <a href="https://huggingface.co/collections/kandinskylab/kandinsky-s2v-10-6ab65ebe8f765b6dd9d706d7"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Models-blue" alt="Hugging Face"></a>
@@ -21,16 +29,16 @@ languages, cartoon characters and animals, long videos — are on the
 
 <table>
   <tr>
-    <td width="50%"><video src="https://github.com/user-attachments/assets/aca2b7e5-db13-4e40-8ff8-70fbe975289d" controls loop></video></td>
-    <td width="50%"><video src="https://github.com/user-attachments/assets/6d33865a-d63c-4c9e-ac43-1627740cea8f" controls loop></video></td>
+    <td width="50%"><video src="https://github.com/user-attachments/assets/8e8960ad-b68c-4f79-b560-13c4930d92cb" controls loop></video></td>
+    <td width="50%"><video src="https://github.com/user-attachments/assets/69ed311a-c3b6-4d0a-ac0c-626973f8b147" controls loop></video></td>
   </tr>
 </table>
 
 <table>
   <tr>
-    <td width="25%"><video src="https://github.com/user-attachments/assets/7853e7d1-b63b-4fe0-9c0d-5fb469d5dd5e" controls loop></video></td>
-    <td width="25%"><video src="https://github.com/user-attachments/assets/cbca1898-75a7-4dc7-8010-32fa21aaa23d" controls loop></video></td>
-    <td width="50%"><video src="https://github.com/user-attachments/assets/c63188f7-e0ec-4ad9-b70a-f43027c27421" controls loop></video></td>
+    <td width="25%"><video src="https://github.com/user-attachments/assets/f0fd2967-a442-4d56-bfdd-266018508535" controls loop></video></td>
+    <td width="25%"><video src="https://github.com/user-attachments/assets/60661415-05e3-4a0b-823c-ac3fef5f25d1" controls loop></video></td>
+    <td width="50%"><video src="https://github.com/user-attachments/assets/2f8ebc97-89c9-4810-a90b-640da7e5d31e" controls loop></video></td>
   </tr>
 </table>
 
