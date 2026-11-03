@@ -43,9 +43,12 @@ frame and a speech track, generated chunk by chunk (5 s each).
 
   Re-upload the package after changing it.
 - **Variables** (optional): `S2V_CONFIG` picks one of the package configs
-  (`s2v_lite_distill.yaml` by default); `S2V_MAX_SECONDS` caps the speech
-  track (10 s); `S2V_GPU_DURATION` is the GPU time requested per call (180 s);
-  `S2V_ZEROGPU_SIZE` selects the slot (`xlarge`).
+  (`s2v_lite_distill.yaml` by default); `S2V_ZEROGPU_SIZE` selects the slot
+  (`xlarge`).
+- **GPU time**: the viewer picks 5 or 10 s of the track, and `GPU_DURATION` in
+  `app.py` maps it to the GPU time requested (100 and 180 s, measured on Lite
+  distilled). `xlarge` bills a request twice, so a free account (300 s a day)
+  can run only the 5 s clip; re-measure after changing the config or the slot.
 - **Examples**: `examples/<name>.png` with `examples/<name>.wav` beside it.
 
 Attention runs through SDPA: FA3 is not available on Spaces, so generation is

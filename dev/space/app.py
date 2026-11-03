@@ -20,10 +20,12 @@ import kandinsky_s2v
 from kandinsky_s2v.pipeline.factory import get_s2v_pipeline
 
 CONFIG = os.environ.get("S2V_CONFIG", "s2v_lite_distill.yaml")
-# ZeroGPU allots GPU time per call, so the track is cut to a few chunks (5 s each).
-MAX_SECONDS = float(os.environ.get("S2V_MAX_SECONDS", "10"))
-# GPU seconds per call: weight transfer into a fresh worker plus ~45 s per chunk (Lite distilled, H100).
-GPU_DURATION = int(os.environ.get("S2V_GPU_DURATION", "180"))
+# ZeroGPU allots GPU time per call, so the track is cut to one or two chunks (5 s each).
+# GPU seconds requested per clip length, Lite distilled on a ZeroGPU xlarge slot (RTX Pro 6000,
+# SDPA): one chunk took 70-77 s, two took 139 s; the rest is headroom. xlarge bills the request
+# twice, and a free account's daily quota is 300 s, so only the 5 s clip fits it.
+GPU_DURATION = {5: 100, 10: 180}
+DEFAULT_SECONDS = 5
 GPU_SIZE = os.environ.get("S2V_ZEROGPU_SIZE", "xlarge")
 EXAMPLES_DIR = Path(__file__).resolve().parent / "examples"
 # Gradio copies a returned video into its own cache, so ours only has to outlive the call.
@@ -40,13 +42,13 @@ pipe = get_s2v_pipeline(
 )
 
 
-def trimmed_wav(audio: str, path: Path) -> str:
-    """The first ``MAX_SECONDS`` of ``audio`` as a wav at ``path``.
+def trimmed_wav(audio: str, seconds: float, path: Path) -> str:
+    """The first ``seconds`` of ``audio`` as a wav at ``path``.
 
     Trimming the track, not passing fewer ``chunks``: the pipeline splits the
     embeddings of the whole track across the chunks it is given.
     """
-    samples, sample_rate = librosa.load(audio, sr=None, mono=True, duration=MAX_SECONDS)
+    samples, sample_rate = librosa.load(audio, sr=None, mono=True, duration=seconds)
     sf.write(path, samples, sample_rate)
     return str(path)
 
@@ -66,12 +68,18 @@ def full_prompt(extra: str | None) -> str:
     return f"{default} {extra}" if extra else default
 
 
-@spaces.GPU(duration=GPU_DURATION, size=GPU_SIZE)
-def generate(
+def gpu_duration(image, audio, prompt, seed, seconds, *_, **__) -> int:
+    """GPU seconds to request: ZeroGPU calls this with ``generate``'s arguments."""
+    return GPU_DURATION[int(seconds)]
+
+
+@spaces.GPU(duration=gpu_duration, size=GPU_SIZE)
+def generate(  # noqa: PLR0913 - one argument per Gradio input
     image: str | None,
     audio: str | None,
     prompt: str | None,
     seed: float | None,
+    seconds: int,
     progress: gr.Progress = gr.Progress(track_tqdm=True),  # noqa: B008 - Gradio injects the tracker
 ) -> str:
     if not image or not audio:
@@ -82,7 +90,7 @@ def generate(
     with tempfile.TemporaryDirectory(prefix="kandinsky_s2v_") as work:
         # The pipeline's tqdm bar (one tick per denoising step, all chunks) is mirrored into the UI.
         result = pipe(
-            audio=trimmed_wav(audio, Path(work) / "speech.wav"),
+            audio=trimmed_wav(audio, seconds, Path(work) / "speech.wav"),
             image=image,
             text=full_prompt(prompt),
             seed=None if seed is None else int(seed),  # a cleared field falls back to the config's seed
@@ -95,7 +103,7 @@ def generate(
 def example_rows() -> list[list[str | int]]:
     """``examples/<name>.png`` paired with ``examples/<name>.wav``."""
     return [
-        [str(image), str(image.with_suffix(".wav")), "", 5]
+        [str(image), str(image.with_suffix(".wav")), "", 5, DEFAULT_SECONDS]
         for image in sorted(EXAMPLES_DIR.glob("*.png"))
         if image.with_suffix(".wav").exists()
     ]
@@ -130,7 +138,7 @@ with gr.Blocks(title="Kandinsky S2V 1.0") as demo:
         '<div style="display:flex; align-items:baseline; gap:14px; flex-wrap:wrap">'
         '<h2 style="margin:0">Kandinsky S2V 1.0</h2>'
         '<span style="font-size:16px; opacity:.75">An avatar video from a <b>reference frame</b> and a '
-        f"<b>speech track</b>; the first {MAX_SECONDS:g} s of the track are used.</span>"
+        "<b>speech track</b>; the first 5 or 10 s of the track are used.</span>"
         "</div>"
         f'<div style="display:flex; gap:6px; margin-top:8px">{BADGES}</div>'
     )
@@ -139,16 +147,23 @@ with gr.Blocks(title="Kandinsky S2V 1.0") as demo:
             # No fullscreen button: leaving fullscreen left the uploaded frame blank (Gradio 6.27).
             image = gr.Image(type="filepath", label="Reference frame", height=280, buttons=["download"])
             audio = gr.Audio(type="filepath", label="Speech")
+            seconds = gr.Radio(
+                choices=list(GPU_DURATION),
+                value=DEFAULT_SECONDS,
+                label="Video length, s",
+                info="10 s needs more GPU time than a free account's daily ZeroGPU quota; "
+                "it works with PRO or a Team/Enterprise organisation.",
+            )
             with gr.Accordion("Advanced settings", open=False):
                 prompt = gr.Textbox(label="Prompt", placeholder="appended to the default prompt")
                 seed = gr.Number(value=5, precision=0, minimum=0, label="Seed")
             run = gr.Button("Generate", variant="primary")
             rows = example_rows()
             if rows:
-                gr.Examples(rows, inputs=[image, audio, prompt, seed])
+                gr.Examples(rows, inputs=[image, audio, prompt, seed, seconds])
         with gr.Column():
             video = gr.Video(label="Result", interactive=False, autoplay=True, height=520)
-    run.click(generate, inputs=[image, audio, prompt, seed], outputs=video)
+    run.click(generate, inputs=[image, audio, prompt, seed, seconds], outputs=video)
 
 # Dark regardless of the viewer's system setting: Gradio styles everything under body.dark.
 DARK_THEME_JS = "() => document.body.classList.add('dark')"
