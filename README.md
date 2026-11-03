@@ -129,22 +129,66 @@ The same model is available as a Diffusers
 [modular pipeline](https://huggingface.co/docs/diffusers/modular_diffusers/overview)
 — the `-Diffusers` repositories in the
 [collection](https://huggingface.co/collections/kandinskylab/kandinsky-s2v-10-6ab65ebe8f765b6dd9d706d7).
-The classes are not in a released Diffusers version yet; until they are, use
-the native pipeline above.
+It was merged in [huggingface/diffusers#15164](https://github.com/huggingface/diffusers/pull/15164)
+and is not in a release yet, so install Diffusers from `main`:
+
+```bash
+pip install git+https://github.com/huggingface/diffusers librosa
+```
 
 ```python
+import librosa
 import torch
 from diffusers import ModularPipeline
+from diffusers.utils import encode_video, load_image
 
 pipe = ModularPipeline.from_pretrained("kandinskylab/Kandinsky-S2V-1.0-Lite-distill-Diffusers")
 pipe.load_components(dtype=torch.bfloat16)
 pipe.to("cuda")
 
-frames = pipe(image="reference.png", audio="speech.wav", output="videos")[0]
+image = load_image("reference.png")
+audio, _ = librosa.load("speech.wav", sr=16000)  # a mono waveform at 16 kHz, for the model
+speech, sample_rate = librosa.load("speech.wav", sr=None)  # the original track, added to the output video
+
+video = pipe(image=image, audio=audio, output="videos")[0]
+encode_video(
+    video,
+    fps=25,
+    output_path="avatar.mp4",
+    audio=torch.from_numpy(speech)[None],
+    audio_sample_rate=sample_rate,
+)
 ```
 
-The speech track is not muxed into the result. The Pro bundles need offloading
-on an 80 GB card; their model cards show how.
+The pipeline reads no files: `image` is a PIL image and `audio` a mono waveform
+at 16 kHz. `from_pretrained` picks the base or distilled blocks from the
+checkpoint. The Pro bundles do not fit an 80 GB card with every component
+resident; offload them through a `ComponentsManager`:
+
+```python
+import librosa
+import torch
+from diffusers import ComponentsManager, ModularPipeline
+from diffusers.utils import encode_video, load_image
+
+manager = ComponentsManager()
+pipe = ModularPipeline.from_pretrained("kandinskylab/Kandinsky-S2V-1.0-Pro-distill-Diffusers", components_manager=manager)
+pipe.load_components(dtype=torch.bfloat16)
+manager.enable_auto_cpu_offload(device="cuda", memory_reserve_margin="40GiB")  # after load_components
+
+image = load_image("reference.png")
+audio, _ = librosa.load("speech.wav", sr=16000)
+speech, sample_rate = librosa.load("speech.wav", sr=None)
+
+video = pipe(image=image, audio=audio, output="videos")[0]
+encode_video(
+    video,
+    fps=25,
+    output_path="avatar.mp4",
+    audio=torch.from_numpy(speech)[None],
+    audio_sample_rate=sample_rate,
+)
+```
 
 ## Responsible use
 
